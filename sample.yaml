@@ -1,0 +1,162 @@
+## Sample configuration file.
+
+# Parameters for the bipartite graph
+graph:
+  n: 60  # (integer) Number of words.
+  m: 60  # (integer) Number of meanings
+  phi: 1 # (double) Phi parameter.
+  
+  constant_prior_probability_of_meanings: yes # (bool) Probability of a meaning does not depend just on the shape of the graph
+  unlinked_objects: yes                      # (bool) Allow for meanings to not be linked to any word
+
+                       # `constant_prior_probability_of_meanings` = 'no' -> no a priori probabilities
+  pi:                  # `constant_prior_probability_of_meanings` = 'yes' -> must define a priori probabilities
+    type: uniform      # (uniform|brokenstick|geometric|powerlaw|custom) A priori meaning probabilities.
+
+    # The fields of `parameters` depend on the value of `type`
+    
+                       # `type` = 'uniform' -> No parameters. All probabilities are 1/m.
+                       # `type` = 'brokenstick' -> No parameters. Probabilities are the expected value of the broken stick distribution for m paritions.
+                       # (integer) Seed for the generation of probabilities
+    # parameters:      # `type` = 'geometric' -> Right-truncated geometric distribution of probability ranks. Parameters m and p.  
+    #   p: 0.5         # (double) Parameter of the geometric distribution: success probability.
+    # parameters:      # `type` = 'powerlaw' ->  Right-truncated zeta distribution of probability ranks. Parameters: m and alpha. Power law A*x^-alpha where A is a function of m and alpha
+    #   alpha: 1       # (double) Exponent of the power law.
+    # parameters:      # `type` = 'custom' -> Manually specify a priori probabilities of meanings
+    #   probabilities: # (double) Manually specify all m probabilities (will be normalized)
+    #     - 0.085
+    #     - 0.182
+    #     - 0.001
+    #     - ...
+
+# Error if `n` <= 0
+# Error if `m` <= 0
+# Error if `phi` < 0
+# Error if `unlinked_objecs` = no (unimplemented)
+# Error if `type` is not one of uniform, brokenstick, geometric, powerlaw or custom
+# If constant_prior_probability_of_meanings is set to yes
+#   For `type` = 'brokenstick'
+#     Error if `seed` < 0, it can be null (~) for a random seed.
+#   For `type` = 'geometric'
+#     Error if `p` <= 0 or `p` > 1
+#   For `type` = 'powerlaw'
+#     Error if `alpha` <= 0
+#   For `type` = 'custom'
+#     Error if any of the probabilities are too close to zero or negative.
+#     Error if the number of `probabilities` specified is not exactly `m`.
+#     Note that if probabilities don't add up to 1 they will be normalized.
+
+# A warning is given if one of the probabilities in the geometric distribution
+# or the power law distribution would result in a value that is too close to
+# being zero.
+
+# Parameters for the lambdas to attempt
+lambda:
+  realizations: 100 # (integer) Number of realizations per lambda
+  type: range       # (range|custom) How to specify values of lambda
+
+  # The fields of `parameters` depend on the value of `type`
+
+  parameters:       # `type` = 'range' -> A range of lambdas from `min` to `max` with `step`
+    min: 0          # (double) Starting value for the range of lambdas
+    max: 1          # (double) Ending value for the range of lambdas
+    step: 0.01      # (double) Size of the steps of lambda
+    
+  # parameters:     # `type` = 'custom' -> Only the specified lambdas
+  #   lambdas:  
+  #     - 0.4900
+  #     - 0.4985
+  #     - 0.5000
+
+# Error if `realizations` <= 0
+# Error if `type` is not 'range' or 'custom'
+# For `type` = 'range':
+#   Warning if not 0 <= `min` <= 1
+#   Warning if not 0 <= `max` <= 1
+#   Error if `max` < `min`
+#   Error if not 0 < `step` <= `max`-`min`
+#   If (`max`-`min`)/`step` is not integer, the last lambda will go over `max` to cover the full range (no warnings)
+# For `type` = 'custom':
+#   Error if no lambdas specified
+
+
+# Parameters for the initial state of the bipartite graph
+initial_graph:
+  type: random_probability # (random_edges|random_probability|complete_graph|bijection) How to specify the random graph
+
+  # The fields of `parameters` depend on the value of `type`
+
+  # parameters:            # `type` = 'random_edges' -> Random bipartite graph with constat number of edges
+  #   edges: 10            # (integer) Number of edges for the random graph
+
+  parameters:              # `type` = 'random_probability' -> Random bipartite graph with constant probability of edge
+    probability: 0.05      # (double) Probability of an edge
+    
+                           # `type` = 'complete_graph' -> Complete bipartite graph
+                           # No parameters
+
+                           # `type` = 'bijection' -> Bijection between min(`n`, `m`) words and meanings.
+                           # No parameters
+
+# Error if `type` is not 'random_edges' or 'random_probability'
+# For `type` = 'random_edges':
+#   Error if not 0 < `edges` <= `n`*`m`
+# For `type` = 'random_probability':
+#   Error if not 0 < `probability <= 1
+#   Warning if not `n`*`m`*`probability` >= 1 (can not have zero edges)
+
+
+# Parameters for the optimizer
+optimization:
+  computation_of_energy: static # (static|dynamic) Computation of energy
+  mutations:
+    type: constant              # (constant|binomial) How to mutate the graph on each iteration
+
+    # The fields of `parameters` depend on the value of `type`
+
+    parameters:                 # `type` = 'constant' -> Constant number of mutations for each iteration.
+      count: 2                  # (integer) Number of mutations.
+
+    # parameters:               # `type` = 'binomial' -> Random number of mutations on each iteration following a binomial distribution.
+    #   probability: 0.05       # (double) Probability of a mutation
+
+  stop_condition:
+    type: weak                  # (weak|strong|custom) When does the optimization stop
+
+    # The fields of `parameters` depend on the value of `type`
+
+    parameters:                 # type = weak -> Stop after `factor`*`n`*`m`*log(`n`*`m`) failed iterations in a row
+      factor: 1                 # (integer) Factor for the weak formula
+
+    # parameters:               # type = strong -> Stop after `factor`*A*log(A) failed iterations in a row (A = `n`*`m` \choose 2)
+    #   factor: 1               # (integer) Factor for the strong formula
+
+    # parameters:               # type = custom -> Stop after the given number of failed iterations in a row
+    #   trials: 10000           # (integer) Custom number of trials
+
+# Error if `computation_of_energy` is not 'static' or 'dynamic'
+# For mutations:
+#   Error if `type` is not 'constant' or 'binomial'
+#   For `type` = 'constant':
+#     Error if `count` <= 0
+#   For `type` = 'binomial':
+#     Error if not 0 < `probability` <= 1
+# For stop_condition:
+#   For `type` = 'weak' or 'strong':
+#     Error if `factor` <= 0
+#   For `type` = 'custom':
+#     Error if `trials` <= 0
+
+    
+misc:
+  seed: ~                          # (integer) Initial PRNG Seed, random seed if null (~)
+  status_update_period: 1          # (double) Update % completed at most this often (seconds). A negative value disables status updates.
+  run_information_theoretical: yes # (bool) If set, (re)create the information_theoretic.csv file in the same directory as this file which, for each value of lambda that will run, contains information theory values (average over all realizations).
+  run_inside_lambda: yes           # (bool) If set, (re)create an inside_lambda directory in the same directory as this file which, for each value of lambda that will run, contains a file named lambda_{value of lambda}.csv with values of probability, age and mu (average over all realizations)
+  run_graph_visualization: yes     # (bool) If set, (re)create a graph_visualization directory in the same directory as this file which, for each value of lambda that will run, contains a directory named graphs_lambda_{value of lambda}. Each of these directories in turn contain, for each realization, a file named graph_{realization}.csv with the adjacency matrix of the graph obtained in the realization.
+
+# Error if `seed` < 0, it can be null (~) for a random seed.
+
+
+# Spurious fields not specified here are silently ignored.
+# Missing fields result in an error indicating what's missing rather than assigning an arbitrary default value.
